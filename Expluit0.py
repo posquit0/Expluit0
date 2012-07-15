@@ -84,35 +84,35 @@ class ScodeGen():
 		self.opt = opt
 		self.stubFile = stubFile
 
-		self.curPath = os.path.abspath(__file__).rsplit('/',1)[0]
-		self.curPath = self.curPath.replace("\\", "/")
+		self.curPath = os.path.split(os.path.abspath(__file__))[0]
+#		self.curPath = self.curPath.replace("\\", "/")
 		
 		if platform == "freebsd":
-			self.stubDir = "/stub/freebsd"
+			self.stubDir = os.path.join("stub", "freebsd")
 		elif platform == "linux":
-			self.stubDir = "/stub/linux"
+			self.stubDir = os.path.join("stub", "linux")
 		else:
 			print "[!] Error: Platform <%s %s> is not available" % (platform, opt)
 			raise InvalidPlatformError
 
 		if opt == "x86":
-			self.stubDir += "/x86"
+			self.stubDir = os.path.join(self.stubDir, "x86")
 		elif opt == "x64":
-			self.stubDir += "/x64"
+			self.stubDir = os.path.join(self.stubDir, "x64")
 		else:
 			print "[!] Error: Platform <%s %s> is not available" % (platform, opt)
 			raise InvalidPlatformError
 		
-		self.stubDir = self.curPath + self.stubDir
+		self.stubDir = os.path.join(self.curPath, self.stubDir)
 
-		self.tempDir = self.curPath + "/temp/"
+		self.tempDir = os.path.join(self.curPath , "temp")
 		tempfile.tempdir = self.tempDir
 
 		if os.path.exists(self.tempDir) == False:
 			os.mkdir(self.tempDir)
 
 		self.tempFile = tempfile.mktemp()
-		self.tempFile = self.tempFile.replace("\\", "/")
+#		self.tempFile = self.tempFile.replace("\\", "/")
 
 		self.asmFile = self.tempFile + ".s"
 		self.objFile = self.tempFile + ".o"
@@ -121,7 +121,7 @@ class ScodeGen():
 		self.encFile = self.tempFile + ".enc.bin"
 		print "[*] Temp File: <%s>" % self.tempFile
 
-		self.testFile = self.curPath + "/stub/testScode"
+		self.testFile = os.path.join(self.curPath, "stub", "testScode")
 
 		self.sCode = ""
 		self._prepareStub()
@@ -133,7 +133,7 @@ class ScodeGen():
 		print "[*] __prepareStub()"
 		
 		# Prepare Stub
-		stub = open("%s/%s" % (self.stubDir, self.stubFile)).read()
+		stub = open(os.path.join(self.stubDir, self.stubFile)).read()
 
 		open(self.asmFile, "w").write(stub)
 
@@ -214,7 +214,7 @@ class PayloadLoaderScodeGen(ScodeGen):
 		self.fdNum = fdNum
 		self.payloadSize = payloadSize # Unit : 256
 	
-		ScodeGen.__init__(self, platform, opt)
+		ScodeGen.__init__(self, platform, opt, stubFile)
 
 		return
 
@@ -222,7 +222,7 @@ class PayloadLoaderScodeGen(ScodeGen):
 		print "[*] __prepareStub()"
 		
 		# Prepare Stub
-		stub = open("%s/%s" % (self.stubDir, self.stubFile)).read()
+		stub = open(os.path.join(self.stubDir, self.stubFile)).read()
 
 		stub = stub.replace("{{FD_NUM}}", "0x%02x" % (self.fdNum + 1))
 		stub = stub.replace("{{PAYLOAD_SIZE}}", "0x%02x" % (self.payloadSize / 0x100))
@@ -239,7 +239,7 @@ class ReverseConnectionScodeGen(ScodeGen):
 		self.ipAddr = ipAddr
 		self.portNum = portNum
 	
-		ScodeGen.__init__(self, platform, opt)
+		ScodeGen.__init__(self, platform, opt, stubFile)
 
 		pass
 
@@ -247,7 +247,7 @@ class ReverseConnectionScodeGen(ScodeGen):
 		print "[*] __prepareStub()"
 		
 		# Prepare Stub
-		stub = open("%s/%s" % (self.stubDir, self.stubFile)).read()
+		stub = open(os.path.join(self.stubDir, self.stubFile)).read()
 
 		inetAddr = toInetAddr(self.ipAddr)
 		portNum = toInetPort(self.portNum)
@@ -271,7 +271,7 @@ class ReadScodeGen(ScodeGen):
 		self.portNum = portNum
 		self.xorValue = xorValue
 	
-		ScodeGen.__init__(self, platform, opt)
+		ScodeGen.__init__(self, platform, opt, stubFile)
 
 		return
 
@@ -298,7 +298,7 @@ class SecuInsideScodeGen(ReverseConnectionScodeGen):
 		print "[*] __prepareStub()"
 		
 		# Prepare Stub
-		stub = open("%s/%s" % (self.stubDir, self.stubFile)).read()
+		stub = open(os.path.join(self.stubDir, self.stubFile)).read()
 
 		inetAddr = toInetAddr(self.ipAddr)
 		portNum = toInetPort(self.portNum)
