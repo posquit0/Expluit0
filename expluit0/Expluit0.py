@@ -8,7 +8,7 @@
 # 1. IPv4[o] and IPv6
 # 2. Add Format: python[o], cpp[o], perl, java, ruby, c, php
 # 3. Add Shellcode: local
-# 4. Add Platform: linux, freebsd, bsd, arm, Solaris
+# 4. Add OS: linux, freebsd, bsd, arm, Solaris
 # 5. Encoding Technic: C -> Python Porting
 # 6. Scode Classfication
 
@@ -19,18 +19,25 @@ from time import sleep
 from SocketServer import TCPServer, BaseRequestHandler
 # SocketServer.TCPServer.allow_reuse_address = True
 
-# Platform for Shellcode : "freebsd" or "linux" ...
-DEFAULT_PLATFORM = "linux"
+# OS for Shellcode : "freebsd" or "linux" ...
+DEFAULT_PLATFORM_OS = "linux"
 
-PLATFORM_LINUX = "linux"
-PLATFORM_FREEBSD = "freebsd"
-PLATFORM_ARM = "arm"
+PLATFORM_OS_WIN = "win"
+PLATFORM_OS_LINUX = "linux"
+PLATFORM_OS_FREEBSD = "freebsd"
+PLATFORM_OS_OPENBSD = "openbsd"
+PLATFORM_OS_SOLARIS = "solaris"
 
-# Opt for Shellcode : "x86" or "x64"
-DEFAULT_OPT = "x86"
+# Arch for Shellcode : "x86" or "x64"
+DEFAULT_PLATFORM_ARCH = "i386"
 
-OPT_X86 = "x86"
-OPT_X64 = "x64"
+PLATFORM_ARCH_I386 = "i386"
+PLATFORM_ARCH_IA64 = "ia64"
+PLATFORM_ARCH_ARM = "arm"
+PLATFORM_ARCH_ARM64 = "arm64"
+PLATFORM_ARCH_MIPS = "mips"
+PLATFORM_ARCH_SPARC = "sparc"
+PLATFORM_ARCH_POWERPC = "powerpc"
 
 # Output Format : "python" or "cpp" ...
 DEFAULT_FORMAT = "python"
@@ -78,29 +85,28 @@ class sCode(str):
 class InvalidPlatformError(Exception):
 	pass
 
-class ScodeGen():
-	def __init__(self, platform = DEFAULT_PLATFORM, opt = DEFAULT_OPT, stubFile = "sample.s"):
-		self.platform = platform
-		self.opt = opt
+class ScodeGen(object):
+	def __init__(self, platform = (DEFAULT_PLATFORM_OS, DEFAULT_PLATFORM_ARCH), stubFile = "sample.s"):
+		self.platform_PLATFORM_OS, self.platform_PLATFORM_ARCH = platform
 		self.stubFile = stubFile
 
 		self.curPath = os.path.split(os.path.abspath(__file__))[0]
 #		self.curPath = self.curPath.replace("\\", "/")
 		
-		if platform == "freebsd":
+		if self.platform_PLATFORM_OS == PLATFORM_OS_FREEBSD:
 			self.stubDir = os.path.join("stub", "freebsd")
-		elif platform == "linux":
+		elif self.platform_PLATFORM_OS == PLATFORM_OS_LINUX:
 			self.stubDir = os.path.join("stub", "linux")
 		else:
-			print "[!] Error: Platform <%s %s> is not available" % (platform, opt)
+			print "[!] Error: Platform <%s %s> is not available" % (self.platform_PLATFORM_OS, self.platform_PLATFORM_ARCH)
 			raise InvalidPlatformError
 
-		if opt == "x86":
-			self.stubDir = os.path.join(self.stubDir, "x86")
-		elif opt == "x64":
-			self.stubDir = os.path.join(self.stubDir, "x64")
+		if self.platform_PLATFORM_ARCH == PLATFORM_ARCH_I386:
+			self.stubDir = os.path.join(self.stubDir, "i386")
+		elif self.platform_PLATFORM_ARCH == PLATFORM_ARCH_IA64:
+			self.stubDir = os.path.join(self.stubDir, "ia64")
 		else:
-			print "[!] Error: Platform <%s %s> is not available" % (platform, opt)
+			print "[!] Error: Platform <%s %s> is not available" % (self.platform_PLATFORM_OS, self.platform_PLATFORM_ARCH)
 			raise InvalidPlatformError
 		
 		self.stubDir = os.path.join(self.curPath, self.stubDir)
@@ -210,11 +216,11 @@ class ScodeGen():
 		return sCode
 
 class PayloadLoaderScodeGen(ScodeGen):
-	def __init__(self, fdNum = 0x04, payloadSize = 0x400, platform = DEFAULT_PLATFORM, opt = DEFAULT_OPT, stubFile = "read_jump.s"):
+	def __init__(self, fdNum = 0x04, payloadSize = 0x400, platform = (DEFAULT_PLATFORM_OS, DEFAULT_PLATFORM_ARCH), stubFile = "read_jump.s"):
 		self.fdNum = fdNum
 		self.payloadSize = payloadSize # Unit : 256
 	
-		ScodeGen.__init__(self, platform, opt, stubFile)
+		ScodeGen.__init__(self, platform, stubFile)
 
 		return
 
@@ -235,11 +241,11 @@ class PayloadLoaderScodeGen(ScodeGen):
 		return
 
 class ReverseConnectionScodeGen(ScodeGen):
-	def __init__(self, ipAddr, portNum, platform = DEFAULT_PLATFORM, opt = DEFAULT_OPT, stubFile = "reverse_tcp.s"):
+	def __init__(self, ipAddr, portNum, platform = (DEFAULT_PLATFORM_OS, DEFAULT_PLATFORM_ARCH), stubFile = "reverse_tcp.s"):
 		self.ipAddr = ipAddr
 		self.portNum = portNum
 	
-		ScodeGen.__init__(self, platform, opt, stubFile)
+		ScodeGen.__init__(self, platform, stubFile)
 
 		pass
 
@@ -264,14 +270,14 @@ class ReverseConnectionScodeGen(ScodeGen):
 
 
 class ReadScodeGen(ScodeGen):
-	def __init__(self, keyFile, keySize, ipAddr, portNum, xorValue = 0x77, platform = DEFAULT_PLATFORM, opt = DEFAULT_OPT, stubFile = "sample.s"):
+	def __init__(self, keyFile, keySize, ipAddr, portNum, xorValue = 0x77, platform = (DEFAULT_PLATFORM_OS, DEFAULT_PLATFORM_ARCH), stubFile = "sample.s"):
 		self.keyFile = keyFile
 		self.keySize = keySize
 		self.ipAddr = ipAddr
 		self.portNum = portNum
 		self.xorValue = xorValue
 	
-		ScodeGen.__init__(self, platform, opt, stubFile)
+		ScodeGen.__init__(self, platform, stubFile)
 
 		return
 
@@ -289,8 +295,8 @@ class ReadScodeGen(ScodeGen):
 		return
 
 class SecuInsideScodeGen(ReverseConnectionScodeGen):
-	def __init__(self, ipAddr, portNum, platform = DEFAULT_PLATFORM, opt = DEFAULT_OPT, stubFile = "secuinside.s"):
-		ReverseConnectionScodeGen.__init__(self,ipAddr, portNum, platform, opt, stubFile)
+	def __init__(self, ipAddr, portNum, platform = (DEFAULT_PLATFORM_OS, DEFAULT_PLATFORM_ARCH), stubFile = "secuinside.s"):
+		ReverseConnectionScodeGen.__init__(self,ipAddr, portNum, platform, stubFile)
 
 		return
 
