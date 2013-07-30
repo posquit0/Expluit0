@@ -1,5 +1,8 @@
+==============
 Expluit0 0.4.1
+==============
 
+:authors: posquit0.bj@gmail.com
 
 For information on what's new in Expluit0 0.4.1, see the NEWS file 
 that comes with the distribution.

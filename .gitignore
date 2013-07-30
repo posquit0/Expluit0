@@ -1,4 +1,21 @@
-*.pyc
-*.swp
+# Include your project-specific ignores in this file
+# Read about how to use .gitignore: https://help.github.com/articles/ignoring-files
+
+# Python bytecode:
+*.py[co]
+
+# Packaging files:
+*.egg*
+
+# Editor temp files:
+.*swp
+*~
+
+# Sphinx docs:
+build
+
+# Object files:
 *.o
+
+# temp folder:
 temp
