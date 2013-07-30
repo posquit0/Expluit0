@@ -6,6 +6,8 @@
 
 # Packaging files:
 *.egg*
+MANIFEST
+dist
 
 # Editor temp files:
 .*swp

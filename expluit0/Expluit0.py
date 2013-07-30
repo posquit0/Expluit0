@@ -120,7 +120,7 @@ class ShellCode(str):
 
     def run(self):
         curPath = os.path.split(os.path.abspath(__file__))[0]
-        runUtil = os.path.join(curPath, "stub", "testScode")
+        scodeRunner = os.path.join(curPath, "utils", "scode_runner")
         tempDir = os.path.join(curPath, TEMP_DIRECTORY)
         tempfile.tempdir = tempDir
 
@@ -135,16 +135,17 @@ class ShellCode(str):
         open(binFile, "wb").write(self + "\x00")
 
         print "[*] Run Shellcode: %s" % (os.path.basename(binFile))
-        print "$ %s %s" % (os.path.basename(runUtil), os.path.basename(binFile))
-        testCode = "%s %s" % (runUtil, binFile)
+        print "$ %s %s" % (os.path.basename(scodeRunner), os.path.basename(binFile))
+        runScode = "%s %s" % (scodeRunner, binFile)
 
         # Run Shellcode
-        os.system(testCode)
+        os.system(runScode)
 
         return
 
     def encode(self, *restricted):
         curPath = os.path.split(os.path.abspath(__file__))[0]
+        scodeEncoder = os.path.join(curPath, "utils", "scode_encoder")
         tempDir = os.path.join(curPath, TEMP_DIRECTORY)
         tempfile.tempdir = tempDir
 
@@ -165,7 +166,7 @@ class ShellCode(str):
         print "[*] with restricted bytes:", " ".join(b for b in restrictedBytes)
 
         restrictedParam = ",".join(b for b in restrictedBytes)
-        cmdStr = "./encoder/encoder %s %s > %s" % (binFile, restrictedParam, encFile)
+        cmdStr = "%s %s %s > %s" % (scodeEncoder, binFile, restrictedParam, encFile)
         os.system(cmdStr)
 
         enc_sCode = open(encFile, "rb").read()
@@ -219,7 +220,8 @@ class ScodeGen(object):
         self.encFile = self.tempFile + ".enc.bin"
         print "[*] Temp File: <%s>" % self.tempFile
 
-        self.runUtil = os.path.join(self.curPath, "stub", "testScode")
+        self.scodeRunner = os.path.join(self.curPath, "utils", "scode_runner")
+        self.scodeEncoder = os.path.join(self.curPath, "utils", "scode_encoder")
 
         self._prepareStub()
         self.sCode = self.__loadScode()
@@ -258,11 +260,11 @@ class ScodeGen(object):
 
     def run(self):
         print "[*] Run Shellcode: %s" % (os.path.basename(self.binFile))
-        print "$ %s %s" % (os.path.basename(self.runUtil), os.path.basename(self.binFile))
-        testCode = "%s %s" % (self.runUtil, self.binFile)
+        print "$ %s %s" % (os.path.basename(self.scodeRunner), os.path.basename(self.binFile))
+        runScode = "%s %s" % (self.scodeRunner, self.binFile)
 
         # Run Shellcode
-        os.system(testCode)
+        os.system(runScode)
 
         return
 
@@ -279,7 +281,7 @@ class ScodeGen(object):
         print "[*] with restricted bytes:", " ".join(b for b in restrictedBytes)
 
         restrictedParam = ",".join(b for b in restrictedBytes)
-        cmdStr = "./encoder/encoder %s %s > %s" % (self.binFile, restrictedParam, self.encFile)
+        cmdStr = "%s %s %s > %s" % (self.scodeEncoder, self.binFile, restrictedParam, self.encFile)
         os.system(cmdStr)
 
         enc_sCode = open(self.encFile, "rb").read()
