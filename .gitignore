@@ -21,3 +21,7 @@ build
 
 # temp folder:
 temp
+
+# utils:
+scode_encoder
+scode_runner

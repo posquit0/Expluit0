@@ -1,11 +1,9 @@
 ==============
-Expluit0 0.4.1
+Expluit0 0.4.2
 ==============
 
 :authors: posquit0.bj@gmail.com
 
-For information on what's new in Expluit0 0.4.1, see the NEWS file 
-that comes with the distribution.
 
 What is this?
 =============

@@ -6,9 +6,15 @@ except ImportError:
     from distutils.core import setup
 
 from sys import version_info
+import subprocess
 
 PACKAGE_NAME = 'Expluit0'
-VERSION = "0.4.1"
+VERSION = "0.4.2"
+
+# Custom build steps
+subprocess.call([
+    "make", "-C", "expluit0/utils"
+])
 
 extra = dict()
 
@@ -20,6 +26,8 @@ setup(
     version=VERSION,
     author="Byungjin Park",
     author_email="posquit0.bj@gmail.com",
+    maintainer="Byungjin Park",
+    maintainer_email="posquit0.bj@gmail.com",
     url="https://github.com/posquit0/Expluit0",
     download_url="https://github.com/posquit0/Expluit0/zipball/{}".format(VERSION),
     description="The Exploit Framework for Your CTF",
@@ -52,6 +60,8 @@ setup(
     ],
     platforms=[
         'Linux', 'Unix', 'Mac OS-X'
+    ],
+    ext_modules=[
     ],
     **extra
 )
