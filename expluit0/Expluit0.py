@@ -294,7 +294,7 @@ class PayloadLoaderScodeGen(ScodeGen):
         self.fdNum = fdNum
         self.payloadSize = payloadSize
 
-        super(PayloadLoaderScodeGen, self).__init__(self, platform, stubFile)
+        super(PayloadLoaderScodeGen, self).__init__(platform, stubFile)
 
         return
 
@@ -320,7 +320,7 @@ class ReverseConnectionScodeGen(ScodeGen):
         self.ipAddr = ipAddr
         self.portNum = portNum
 
-        super(ReverseConnectionScodeGen, self).__init__(self, platform, stubFile)
+        super(ReverseConnectionScodeGen, self).__init__(platform, stubFile)
 
         return
 
@@ -353,7 +353,7 @@ class ReadScodeGen(ScodeGen):
         self.portNum = portNum
         self.xorValue = xorValue
 
-        super(ReadScodeGen, self).__init__(self, platform, stubFile)
+        super(ReadScodeGen, self).__init__(platform, stubFile)
 
         return
 
@@ -372,7 +372,7 @@ class ReadScodeGen(ScodeGen):
 
 class SecuInsideScodeGen(ReverseConnectionScodeGen):
     def __init__(self, ipAddr, portNum, platform=(DEFAULT_PLATFORM_OS, DEFAULT_PLATFORM_ARCH), stubFile="secuinside.s"):
-        super(SecuInsideScodeGen, self).__init__(self, ipAddr, portNum, platform, stubFile)
+        super(SecuInsideScodeGen, self).__init__(ipAddr, portNum, platform, stubFile)
 
         return
 
