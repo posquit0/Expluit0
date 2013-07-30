@@ -5,16 +5,18 @@
 #endif
 #include <stdio.h>
 #include <stdlib.h>
+#include <unistd.h>
+#include <sys/mman.h>
 #include <sys/types.h>
 #include <sys/stat.h>
 
 
 int main(int argc, char **argv) {
-	char		*filebuf;
+	void *      buf;
 	struct stat	sstat;
 	FILE 		*fp;
-	int		    c, len;
-	int 		(*funct)();
+	int		    c, size;
+	int 		(*func)();
 	
 	/* Check command line parameters */
 	if (argc < 2) {
@@ -35,16 +37,17 @@ int main(int argc, char **argv) {
 	if (c == -1) {
         exit(0);
 	}
-	len = sstat.st_size;
+	size = sstat.st_size;
 
 	/* Allocate space for file */
-	if (!(filebuf = (char *)malloc(len))) {
+	if ((buf = mmap(NULL, size, PROT_EXEC | PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0)) < 0) {
         fprintf(stderr, "[*] Error: Failed to allocate memory.");
         exit(0);
     }
+	fprintf(stdin, "[*] Memory allocated at %p\n", buf);
 
 	/* Read file in allocated space */
-	if (fread(filebuf, 1, len, fp) != len) {
+	if (fread(buf, 1, size, fp) != size) {
         fprintf(stderr, "[*] Error: Failed to read shellcode from file.");
         exit(0);
 	}
@@ -53,8 +56,8 @@ int main(int argc, char **argv) {
 
 	/* Execute the shellcode. */
 	fprintf(stdin, "[*] Running shellcode...\n");
-	funct = (int (*)()) filebuf;
-	(int)(*funct)();
+	func = (int (*)()) buf;
+	(int)(*func)();
 	fprintf(stdin, "[*] Shellcode returned execution successfully.\n");
 	
 	return 0;
