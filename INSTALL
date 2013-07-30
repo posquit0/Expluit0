@@ -1,0 +1,21 @@
+Requirements
+
+  Python 2.6 or 2.7.
+
+
+Installation
+
+  * Debian and Ubuntu
+    Not supported
+
+  * FreeBSD, Gentoo
+    Not supported
+
+  * Win32
+    Not supported
+
+  * Other
+    As with other Python packages, the standard way of installing from
+    source is:
+
+      python setup.py install

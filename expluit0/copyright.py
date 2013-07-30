@@ -1,5 +1,23 @@
-Copyright (c) 2012-2013 Posquit0 and individual contributors.
-All rights reserved.
+# Copyright (c) Posquit0.
+# See LICENSE for details.
+
+"""
+Copyright information for Expluit0.
+"""
+
+from __future__ import division, absolute_import
+
+#from expluit0 import __version__ as version, version as longversion
+
+#longversion = str(longversion)
+
+copyright="""\
+Copyright (c) 2012-2013 Posquit0.
+See LICENSE for details."""
+
+disclaimer='''
+Expluit0, the Framework of Your CTF
+%s
 
 Permission is hereby granted, free of charge, to any person obtaining
 a copy of this software and associated documentation files (the
@@ -19,3 +37,6 @@ NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE
 LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
 OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
 WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+
+''' % (copyright,)
+
