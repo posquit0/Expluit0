@@ -13,7 +13,7 @@ VERSION = "0.4.2"
 
 # Custom build steps
 subprocess.call([
-    "make", "-C", "expluit0/utils"
+    "make", "-C", "./expluit0/utils"
 ])
 
 extra = dict()
